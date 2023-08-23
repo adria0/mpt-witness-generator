@@ -10,11 +10,11 @@ import (
 )
 
 type Config struct {
-	NodeUrl string `json:"NodeUrl"`
-	BlockNum int `json:"BlockNum"`
-	Addr string `json:"Addr"`
-	Keys []string `json:"Keys"`
-	Values []string `json:"Values"`
+	NodeUrl  string   `json:"NodeUrl"`
+	BlockNum int      `json:"BlockNum"`
+	Addr     string   `json:"Addr"`
+	Keys     []string `json:"Keys"`
+	Values   []string `json:"Values"`
 }
 
 //export GetWitness
@@ -30,15 +30,39 @@ func GetWitness(proofConf *C.char) *C.char {
 	addr := common.HexToAddress(config.Addr)
 	for i := 0; i < len(config.Keys); i++ {
 		trieMod := witness.TrieModification{
-			Type: witness.StorageChanged,
-			Key: common.HexToHash(config.Keys[i]),
-			Value: common.HexToHash(config.Values[i]),
+			Type:    witness.StorageChanged,
+			Key:     common.HexToHash(config.Keys[i]),
+			Value:   common.HexToHash(config.Values[i]),
 			Address: addr,
 		}
 		trieModifications = append(trieModifications, trieMod)
 	}
 
 	proof := witness.GetWitness(config.NodeUrl, config.BlockNum, trieModifications)
+	b, err := json.Marshal(proof)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return C.CString(string(b))
+}
+
+type GetWitnessExRequest struct {
+	BlockNum int    `json:"BlockNum"`
+	NodeUrl  string `json:"NodeUrl"`
+	Mods     []witness.TrieModification
+}
+
+//export GetWitnessEx
+func GetWitnessEx(proofConf *C.char) *C.char {
+	var config GetWitnessExRequest
+
+	err := json.Unmarshal([]byte(C.GoString(proofConf)), &config)
+	if err != nil {
+		panic(err)
+	}
+
+	proof := witness.GetWitness(config.NodeUrl, config.BlockNum, config.Mods)
 	b, err := json.Marshal(proof)
 	if err != nil {
 		fmt.Println(err)
